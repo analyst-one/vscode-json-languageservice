@@ -3,8 +3,7 @@
 *  Licensed under the MIT License. See License.txt in the project root for license information.
 *--------------------------------------------------------------------------------------------*/
 
-// import { TextEdit} from 'vscode-languageserver-textdocument';
-import { createScanner, SyntaxKind, JSONScanner, FormattingOptions as JPFormattingOptions } from 'jsonc-parser';
+import { createScanner, SyntaxKind, JSONScanner } from 'jsonc-parser';
 import { TextDocument, TextEdit, FormattingOptions, Position, Range, TextDocumentContentChangeEvent, SortOptions } from '../jsonLanguageTypes';
 import { format } from './format';
 import { PropertyTree, Container } from './propertyTree';
@@ -376,6 +375,14 @@ function sortJsoncDocument(jsonDocument: TextDocument, propertyTree: PropertyTre
     return sortedJsonDocument;
 }
 
+function sortPropertiesCaseSensitive(properties: PropertyTree[]): void {
+    properties.sort((a, b) => {
+        const aName = a.propertyName ?? '';
+        const bName = b.propertyName ?? '';
+        return aName < bName ? -1 : aName > bName ? 1 : 0;
+    });
+}
+
 function updateSortingQueue(queue: any[], propertyTree: PropertyTree, beginningLineNumber: number) {
     if (propertyTree.childrenProperties.length === 0) {
         return;
@@ -389,6 +396,8 @@ function updateSortingQueue(queue: any[], propertyTree: PropertyTree, beginningL
         }
         const diff = minimumBeginningLineNumber - propertyTree.beginningLineNumber!;
         beginningLineNumber = beginningLineNumber + diff;
+
+        sortPropertiesCaseSensitive(propertyTree.childrenProperties);
 
         queue.push(new SortingRange(beginningLineNumber, propertyTree.childrenProperties));
 
