@@ -257,21 +257,17 @@ export class JSONCompletion {
 				}
 				const schemaPropertyNames = s.schema.propertyNames;
 				if (typeof schemaPropertyNames === 'object' && !schemaPropertyNames.deprecationMessage && !schemaPropertyNames.doNotSuggest) {
-					const propertyNameCompletionItem = (name: string, enumDescription: string | MarkupContent | undefined = undefined) => {
+					const propertyNameCompletionItem = (name: string, documentation: string | MarkupContent | undefined, detail: string | undefined, sortText: string | undefined) => {
 						const proposal: JSONCompletionItem = {
 							kind: CompletionItemKind.Property,
 							label: name,
 							insertText: this.getInsertTextForProperty(name, undefined, addValue, separatorAfter),
 							insertTextFormat: InsertTextFormat.Snippet,
 							filterText: this.getFilterTextForValue(name),
-							documentation: enumDescription || this.fromMarkup(schemaPropertyNames.markdownDescription) || schemaPropertyNames.description || ''
+							documentation: documentation || this.fromMarkup(schemaPropertyNames.markdownDescription) || schemaPropertyNames.description || '',
+							sortText,
+							detail
 						};
-						if (schemaPropertyNames.completionDetail !== undefined) {
-							proposal.detail = schemaPropertyNames.completionDetail;
-						}
-						if (schemaPropertyNames.suggestSortText !== undefined) {
-							proposal.sortText = schemaPropertyNames.suggestSortText;
-						}
 						if (proposal.insertText && endsWith(proposal.insertText, `$1${separatorAfter}`)) {
 							proposal.command = {
 								title: 'Suggest',
@@ -288,11 +284,18 @@ export class JSONCompletion {
 							} else if (schemaPropertyNames.enumDescriptions && i < schemaPropertyNames.enumDescriptions.length) {
 								enumDescription = schemaPropertyNames.enumDescriptions[i];
 							}
-							propertyNameCompletionItem(schemaPropertyNames.enum[i], enumDescription);
+							const enumSortText = schemaPropertyNames.enumSortTexts?.[i];
+							const enumDetails = schemaPropertyNames.enumDetails?.[i];
+							propertyNameCompletionItem(schemaPropertyNames.enum[i], enumDescription, enumDetails, enumSortText);
+						}
+					}
+					if (schemaPropertyNames.examples) {
+						for (let i = 0; i < schemaPropertyNames.examples.length; i++) {
+							propertyNameCompletionItem(schemaPropertyNames.examples[i], undefined, undefined, undefined);
 						}
 					}
 					if (schemaPropertyNames.const) {
-						propertyNameCompletionItem(schemaPropertyNames.const);
+						propertyNameCompletionItem(schemaPropertyNames.const, undefined, schemaPropertyNames.completionDetail, schemaPropertyNames.suggestSortText);
 					}
 				}
 			}
@@ -680,6 +683,8 @@ export class JSONCompletion {
 					label: this.getLabelForValue(enm),
 					insertText: this.getInsertTextForValue(enm, separatorAfter),
 					insertTextFormat: InsertTextFormat.Snippet,
+					sortText: schema.enumSortTexts?.[i],
+					detail: schema.enumDetails?.[i],
 					documentation
 				});
 			}
@@ -744,7 +749,7 @@ export class JSONCompletion {
 	private addDollarSchemaCompletions(separatorAfter: string, collector: CompletionsCollector): void {
 		const schemaIds = this.schemaService.getRegisteredSchemaIds(schema => schema === 'http' || schema === 'https');
 		schemaIds.forEach(schemaId => {
-			if (schemaId.startsWith('http://json-schema.org/draft-')) {
+			if (schemaId.startsWith('https://json-schema.org/draft-')) {
 				schemaId = schemaId + '#';
 			}
 			collector.add({

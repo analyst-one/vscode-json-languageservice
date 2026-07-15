@@ -10,6 +10,7 @@ import { TextDocument, ErrorCode, PromiseConstructor, LanguageSettings, Document
 import * as l10n from '@vscode/l10n';
 import { JSONSchemaRef, JSONSchema } from '../jsonSchema';
 import { isBoolean } from '../utils/objects';
+import { DiagnosticRelatedInformation } from 'vscode-languageserver-types';
 
 export class JSONValidation {
 
@@ -25,7 +26,7 @@ export class JSONValidation {
 		this.validationEnabled = true;
 	}
 
-	public configure(raw: LanguageSettings) {
+	public configure(raw: LanguageSettings | undefined): void {
 		if (raw) {
 			this.validationEnabled = raw.validate !== false;
 			this.commentSeverity = raw.allowComments ? undefined : DiagnosticSeverity.Error;
@@ -53,25 +54,26 @@ export class JSONValidation {
 			let schemaRequest = documentSettings?.schemaRequest ? toDiagnosticSeverity(documentSettings.schemaRequest) : DiagnosticSeverity.Warning;
 
 			if (schema) {
-				const addSchemaProblem = (errorMessage: string, errorCode: ErrorCode) => {
+				const addSchemaProblem = (errorMessage: string, errorCode: ErrorCode, relatedInformation?: DiagnosticRelatedInformation[]) => {
 					if (jsonDocument.root && schemaRequest) {
 						const astRoot = jsonDocument.root;
 						const property = astRoot.type === 'object' ? astRoot.properties[0] : undefined;
 						if (property && property.keyNode.value === '$schema') {
 							const node = property.valueNode || property;
 							const range = Range.create(textDocument.positionAt(node.offset), textDocument.positionAt(node.offset + node.length));
-							addProblem(Diagnostic.create(range, errorMessage, schemaRequest, errorCode));
+							addProblem(Diagnostic.create(range, errorMessage, schemaRequest, errorCode, 'json', relatedInformation));
 						} else {
 							const range = Range.create(textDocument.positionAt(astRoot.offset), textDocument.positionAt(astRoot.offset + 1));
-							addProblem(Diagnostic.create(range, errorMessage, schemaRequest, errorCode));
+							addProblem(Diagnostic.create(range, errorMessage, schemaRequest, errorCode, 'json', relatedInformation));
 						}
 					}
 				};
 				if (schema.errors.length) {
-					addSchemaProblem(schema.errors[0], ErrorCode.SchemaResolveError);
+					const error = schema.errors[0];
+					addSchemaProblem(error.message, error.code, error.relatedInformation);
 				} else if (schemaValidation) {
 					for (const warning of schema.warnings) {
-						addSchemaProblem(warning, ErrorCode.SchemaUnsupportedFeature);
+						addSchemaProblem(warning.message, warning.code, warning.relatedInformation);
 					}
 					const semanticErrors = jsonDocument.validate(textDocument, schema.schema, schemaValidation, documentSettings?.schemaDraft);
 					if (semanticErrors) {
