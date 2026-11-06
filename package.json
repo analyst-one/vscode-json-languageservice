@@ -21,7 +21,7 @@
     "@typescript-eslint/parser": "^8.17.0",
   "eslint": "^9.32.0",
     "json-schema-test-suite": "https://github.com/json-schema-org/JSON-Schema-Test-Suite.git#69acf52990b004240839ae19b4bec8fb01d50876",
-    "mocha": "^10.8.2",
+    "mocha": "^12.0.2",
     "rimraf": "^6.0.1",
     "typescript": "^5.7.2"
   },
